@@ -1,0 +1,664 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% rhxterm
+% Copyright (C) 2003-2008, Ralf Hemmecke <ralf@hemmecke.de>
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+%--Generate .dvi
+% noweave -delay rhxterm.sty.nw > rhxterm.tex
+% latex rhxterm.tex
+% makeindex rhxterm.idx
+% latex rhxterm.tex
+% latex rhxterm.tex
+%
+%--Generate .html via tex4ht
+% noweave -delay rhxterm.sty.nw > rhxterm.tex
+% htlatex rhxterm.tex
+%
+%--Generate the .sty code
+% notangle rhxterm.sty.nw > rhxterm.sty
+%
+%
+% rhxterm defines several commands for the definition and usage
+% of concepts. It should help to get an interactive dvi when used
+% together with the hyperref package.
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% This work may be distributed and/or modified under the
+% conditions of the LaTeX Project Public License, either
+% version 1.3 of this license or (at your option) any later
+% version. The latest version of this license is in
+%   http://www.latex-project.org/lppl.txt               
+% and version 1.3 or later is part of all distributions of LaTeX
+% version 2003/12/01 or later.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\documentclass[a4paper]{article}
+
+\newcommand{\AuthorFirstName}{Ralf}
+\newcommand{\AuthorLastName}{Hemmecke}
+\newcommand{\rhxtermfile}{rhxterm.sty.nw}
+\author{\AuthorFirstName{} \AuthorLastName}
+\title{The rhxterm Package}
+\date{}
+
+
+\newcount\hours\newcount\minutes
+\hours=\time
+\divide\hours by 60
+\minutes=-\hours \multiply\minutes by 60 \advance\minutes \time
+\def\rhx@twodigits#1{\ifnum#1<10 0\fi\number#1}
+\newcommand{\CurrentTime}{\the\hours:\rhx@twodigits{\the\minutes}}
+\edef\rhxtoday{\rhx@twodigits{\the\day}-\ifcase\month\or
+  Jan\or Feb\or Mar\or Apr\or May\or Jun\or
+  Jul\or Aug\or Sep\or Oct\or Nov\or Dec\fi-\number\year}
+
+\usepackage{fancyhdr}
+\rhead{\footnotesize{\AuthorFirstName{} \AuthorLastName}}
+\lfoot{\footnotesize{\textbf{\rhxtermfile}}}
+\cfoot{\footnotesize{[\rhxtoday~\CurrentTime]}}
+\rfoot{\footnotesize{\thepage}}
+\pagestyle{fancy}
+\renewcommand{\pagestyle}[1]{}
+
+\frenchspacing
+\usepackage{makeidx}
+\makeindex
+\usepackage{hyperref}
+\usepackage{noweb}
+\noweboptions{footnotesizecode}
+
+%We highlight the code area by redefining the
+%\definetexcommand{nwbegincode} and \definetexcommand{nwendcode}
+%commands of the \useterm{noweb} package. These commands are generated
+%by \useterm{NOWEAVE} at the begin and end of each code part.
+
+%The background color of a code chunk can be configured via the
+%commands \usetexcommand{backgroundColor}\verb'{code}{...}' at a local
+%customization. See allprose.sty.
+\usepackage{color}
+\makeatletter
+\def\backgroundColor#1#2#{\background@Color{#1}{#2}}
+\def\background@Color#1#2#3{%
+  \expandafter\gdef\csname background#1\endcsname{\@backgroundColor{#1}#2{#3}}}
+\def\@backgroundColor#1{\colorbox}%
+
+\let\rhxnwbegincode\nwbegincode
+\let\rhxnwendcode\nwendcode
+\def\nwbegincode#1{\begin{ColoredBackground}{code}\rhxnwbegincode{#1}}
+\def\nwendcode#1{\rhxnwendcode{}\end{ColoredBackground}}
+\backgroundColor{code}[rgb]{1,1,0.5}
+\makeatother
+
+%Note that we require at least a version bigger than 0.8a. Version 0.5
+%does not work.
+% We must define the following two commands for the case that framed.sty
+% is not available in the right version.
+\def\MakeFramed{\begingroup}
+\def\endMakeFramed{\endgroup}%
+\IfFileExists{framed.sty}{%
+  \usepackage{framed}[2003/07/21 v 0.8a]%
+}{%
+  typeout{Warning: framed.sty not found}
+}
+
+\makeatletter
+\newenvironment{ColoredBackground}[1]%
+  {\@ifundefined{background#1}%
+     {\def\FrameCommand{}}%
+     {\def\FrameCommand{\csname background#1\endcsname}}%
+   \MakeFramed{}}%
+  {\endMakeFramed}
+
+\let\rhx@verbatim\verbatim
+\let\rhx@endverbatim\endverbatim
+\renewenvironment{verbatim}%
+{\ColoredBackground{verbatim}\footnotesize\rhx@verbatim}%
+{\rhx@endverbatim\endColoredBackground\noindent}
+\backgroundColor{verbatim}[rgb]{0.7,0.7,0.7}
+
+\IfFileExists{srcltx.sty}%
+  {\usepackage{srcltx}[2004/05/15 v1.4]%
+    \let\src@@include\patched@src@@include
+    \protected@xdef\CurrentInput{\jobname.sty.nw}%
+    \AtBeginDocument{\global\src@lastline=-1}}%
+  {\typeout{Cannot find srcltx.sty.}}
+\makeatother
+
+\newcommand{\usetexcommand}[1]{\texttt{\textbackslash}#1}
+
+
+
+
+%------------------------------------------------------------------
+%------------------------------------------------------------------
+\makeatletter
+\newif\ifHTML
+\@ifundefined{ifHtml}{\HTMLfalse}{\HTMLtrue}
+\ifHTML
+%-- In case we run htlatex rhxterm.tex, we must redefine some commands
+%-- and fix a little bug in srcltx.4ht of TeX4ht.
+%% The following is basically a (nearly) literal copy of 
+%% the stuff from 
+%% allprose.4ht.nw,v 1.1 2005/12/17 17:15:56 hemmecke
+\renewenvironment{ColoredBackground}[1]%
+  {\csname background#1\endcsname {}
+   \HCode{<div class="cls#1">}}%
+  {\HCode{</div>}}
+\catcode`\:=11
+\def\@backgroundColor#1{%
+  \expandafter\gdef\csname background#1\endcsname{}%
+  \Configure{colorbox}%
+    {\bgroup
+      \let\A:color=\a:color
+      \Configure{color}%
+        {\let\a:color=\A:color \Configure{SetHColor}%
+          {\Css{div.cls#1{background-color:\HColor;}}}}}%
+    {\egroup}%
+  \colorbox
+}
+\let\ht:everypar\everypar
+\catcode`\:=12
+\fi
+\makeatother
+%------------------------------------------------------------------
+%------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{document}
+
+\maketitle
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+<<version information>>=
+\ProvidesPackage{rhxterm}[2008/02/25 v1.14 Notion definition and use (rhx)]
+@ %
+%TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+\begin{abstract}
+  The rhxterm package provides two commands \usetexcommand{defineterm}
+  and \usetexcommand{useterm} in order to tag definitions and use of
+  terms that are introduced by the writer of some text.
+
+  If the \texttt{hyperref} package is loaded (after rhxterm) then also
+  hyperlinks from the use of some term to the place of its definition
+  is generated.
+
+  Furthermore, the rhxterm package provides commands for the
+  additional definition of commands like \usetexcommand{defineterm}
+  and \usetexcommand{useterm}.
+\end{abstract}
+
+\label{sec:Contents}
+\tableofcontents
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Introduction}
+
+The rhxterm package consist of two parts.
+%
+One part defines a framework to define special commands that hyperlink
+and index text parts. It is descriped in Section~\ref{sec:Framework}.
+%
+The other part uses the framework in order to actually define such
+commands like \usetexcommand{defineterm} and
+\usetexcommand{useterm}. This is described in
+Section~\ref{sec:defineterm}.
+
+When reading new texts one sometimes comes across new notions that
+might have been defined some pages earlier. It is always a pain and
+actually time consuming to browse through the text in order to find
+the place where the notion was defined. It arose the desire to
+generate hyperlinks to the definition of such notions and also
+generate an index of the places in text where the notion is defined or
+used.
+
+Putting it to very simple terms, we define two commands with the
+follwing expansions.
+\begin{center}
+\begin{tabular}{lcl}
+  \verb'\defineterm{T}' & $\longrightarrow$ &
+  \verb'\hypertarget{dt:T}{T}\index{T}'\\
+%
+  \verb'\useterm{T}' & $\longrightarrow$ & \verb'\hyperlink{dt:T}{T}\index{T}'
+\end{tabular}
+\end{center}
+
+
+Of course, for such an expansion there would be no need for a devoted
+style file, but we want to control the arguments a bit more.
+%
+In short, we want the following behaviour.
+\begin{itemize}
+\item \verb'\defineterm{TLI}': Print \verb'TLI' in text and index and
+  use it as a label.\\
+  $\longrightarrow$ \verb'\hypertarget{dt:TLI}{TLI}\index{TLI}'
+
+\item \verb'\defineterm{L@TI}': Print \verb'TI' in text and index, but
+  use \verb'L' for sorting the index. Furthermore \verb'L' is used as
+  label intended to be put into \usetexcommand{label}.\\
+  $\longrightarrow$ \verb'\hypertarget{dt:L}{TI}\index{L@TI}'
+
+
+\item \verb'\defineterm[T]{LI}' Print \verb'T' in text and use \verb'LI'
+  for the index and the label.\\
+  $\longrightarrow$ \verb'\hypertarget{dt:LI}{T}\index{LI}'
+
+\item \verb'\defineterm[T]{L@I}': Print \verb'T' in text and use
+  \verb'I' for the index. The label part is made of \verb'L'.\\
+  $\longrightarrow$ \verb'\hypertarget{dt:L}{T}\index{L@I}'
+\end{itemize}
+
+Similarly, \usetexcommand{useterm} should be used.
+%
+It is intended that \usetexcommand{defineterm} highlights the notion
+in some way and \usetexcommand{useterm} generates a hyperlink to
+this definition.
+
+By the implementation given below, in particular the implementation of
+\usetexcommand{rhxtermSplitAtOther}, the argument inside the braces
+must not contain any \verb'&' character.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{The Definition of \usetexcommand{defineterm} and
+  \usetexcommand{useterm}}
+\label{sec:defineterm}
+Our initial idea was that a notion that is newly defined should
+appear in a special font in the text. Additionally it should also
+appear in the index. Furthermore, whenever this new notion is used in
+other places it should be hyperlinked to the place where it is
+defined.
+%
+So we wanted to have two commands \usetexcommand{defineterm} and
+\usetexcommand{useterm} that do this with a nice and
+easy-to-remember syntax.
+%
+The syntax is very similar to the syntax of the
+\usetexcommand{index} command, but the semantics is a little
+different, since we did not want to repeat information in the text.
+%
+Basically, we define a command \usetexcommand{rhxtermNewCommand}
+which takes two arguments. Take as an example the actual definitions
+of \usetexcommand{defineterm} and \usetexcommand{useterm}.
+
+%CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+<<Definition of defineterm and useterm>>=
+\rhxtermNewCommand{\defineterm}{\rhxDefineTerm}
+\rhxtermNewCommand{\useterm}{\rhxUseTerm}
+@ %def defineterm useterm
+%TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+
+It defines the first argument in terms of the second with the
+following semantics that we demonstrate by the
+\usetexcommand{defineterm} command.
+
+Whenever \usetexcommand{defineterm} is used in the text, its
+arguments are translated to three arguments and
+\usetexcommand{rhxDefineTerm} is applied to them. So we have the
+following equivalences.
+\begin{center}
+\begin{tabular}[t]{|l|l|}
+\hline
+\verb'\defineterm{TLI}'    & \verb'\rhxDefineTerm{TLI}{TLI}{TLI}'\\
+\verb'\defineterm{L@TI}'   & \verb'\rhxDefineTerm{L}{TI}{L@TI}'\\
+\verb'\defineterm[T]{LI}'  & \verb'\rhxDefineTerm{LI}{T}{LI}'\\
+\verb'\defineterm[T]{L@I}' & \verb'\rhxDefineTerm{L}{T}{L@I}'\\
+\hline
+\end{tabular}
+\end{center}
+This translation makes it easy to actually define
+\usetexcommand{rhxDefineTerm} and \usetexcommand{rhxUseTerm} since
+these commands always take 3 arguments where the first argument is a
+label, the second argument is to be typeset in text and the third
+argument should simply be handed over to an \usetexcommand{index}
+command.
+
+The actual definitions can be found below.
+%CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+<<Definition of rhxDefineTerm and rhxUseTerm>>=
+\newcommand{\rhxDefineTerm}[3]{%
+  \hypertarget{dt:#1}{\defineTermStyle{#2}}%
+  \label{!#1}%
+  \index{#3|defineTermPage}%  
+}
+\newcommand{\rhxUseTerm}[3]{%
+  \@ifundefined{r@!#1}% corresponds to \label{!#1} above
+    {\useTermStyle{#2}}%
+    {\hyperlink{dt:#1}{\useTermStyle{#2}}}%
+  \index{#3}%  
+}
+@ %def rhxDefineTerm rhxUseTerm
+%TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+
+
+
+
+As can be seen from above, there is some style information that can be
+redefined by a user of the rhxterm package.
+%CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+<<Definition of defineTermStyle and useTermStyle>>=
+\newcommand{\defineTermPage}[1]{\defineTermStyle{\hyperpage{#1}}}
+\newcommand{\defineTermStyle}[1]{\textbf{#1}}
+\newcommand{\useTermStyle}[1]{\emph{#1}}
+@
+%TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Relation to the hyperref Package}
+The above definitions rely on the hyperref package. In order to make
+the rhxterm package also working without the hyperref package we
+provide dummy commands that will be overridden if hyperref is loaded
+after rhxterm.
+
+%CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+<<dummy hyperref commands>>=
+\@ifundefined{hyperlink}{\def\hyperlink#1#2{#2}}{}
+\@ifundefined{hypertarget}{\def\hypertarget#1#2{#2}}{}
+\@ifundefined{hyperpage}{\def\hyperpage#1{#1}}{}
+@ %def hyperlink hypertarget hyperpage
+%TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+
+
+
+
+
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{The General Framework}
+\label{sec:Framework}
+
+
+Commands defined by \usetexcommand{rhxtermNewCommand} take an
+optional and a mandatory argument which are translated to three
+arguments (see example of \usetexcommand{defineterm} in the table
+above).
+
+If the optional argument is not present, we let it be equal to the
+second.
+
+%CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+<<rhxtermNewCommand>>=
+\def\rhxtermarg{\rhxtermNoOptionalArgument}
+\def\rhxtermNewCommand#1#2{%
+  \newcommand{#1}[2][\rhxtermNoOptionalArgument]{%
+    \def\rhxtermgiven{##1}%
+    \ifx\rhxtermgiven\rhxtermarg \rhxtermTwoToThree{##2}{##2}{#2}%
+    \else                        \rhxtermTwoToThree{##1}{##2}{#2}%
+    \fi}}
+@
+%TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+
+Now to translate the two arguments to three arguments in the
+appropriate form, we can assume that
+\usetexcommand{rhxtermTwoToThree} is called with the following
+pattern of arguments.
+\begin{verbatim}
+\rhxtermTwoToThree{C}{C}{\somecommand}
+\rhxtermTwoToThree{A@C}{A@C}{\somecommand}
+\rhxtermTwoToThree{C}{B}{\somecommand}
+\rhxtermTwoToThree{C}{A@B}{\somecommand}
+\end{verbatim}
+\noindent
+according to the table above.
+
+For simplicity we assume that we are given
+\begin{verbatim}
+\rhxtermTwoToThree{R@S}{U@V}{\somecommand}
+\end{verbatim}
+\noindent
+This must be transformed into
+\begin{verbatim}
+\somecommand{U}{S}{U@V}
+\end{verbatim}
+\noindent
+Therefore we define \usetexcommand{rhxtermTwoToThree} as follows.
+%CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+<<make 3 arguments out of 2>>=
+\def\rhxtermTwoToThree#1#2#3{%
+  #3{\rhxtermAtSplit{#2}{\rhxfirstoftwo}}%
+    {\rhxtermAtSplit{#1}{\rhxsecondoftwo}}%
+    {#2}}
+\def\rhxfirstoftwo#1#2{#1}
+\def\rhxsecondoftwo#1#2{#2}
+@ %def rhxtermTwoToThree
+%TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+
+It takes a command \usetexcommand{rhxtermAtSplit} which basically
+splits its first argument at the \verb'@' sign or doubles its first
+argument if there is no \verb'@' sign in it. The second argument is
+applied to the resulting two tokens. Thus we have the following
+translations.
+\begin{center}
+  \begin{tabular}[t]{lcl}
+    \verb'\rhxtermAtSplit{A@B}{\somecommand}' & $\longrightarrow$ &
+    \verb'\somecommand{A}{B}'\\
+    \verb'\rhxtermAtSplit{A}{\somecommand}'   & $\longrightarrow$ &
+    \verb'\somecommand{A}{A}'\\
+  \end{tabular}
+\end{center}
+
+
+
+
+
+
+
+The command itself is using an auxiliary construction to detect the
+presence of an \verb'@' sign.
+%
+In order to allow the splitting in both cases (if \verb'@' has
+category code 11 (letter) or 12 (other)), we basically branch at that
+decision. 
+%
+The way it is implemented below is a bit different, though.
+
+First we treat the case when \verb'@' has category code 12.
+It is clear that the first and second argument of
+\usetexcommand{rhxtermSplitAtOther} are exactly what we want.
+%
+However, if the first argument of \usetexcommand{rhxtermAtSplit} has
+no \verb'@' sign in it or there is an \verb'@' sign but it is of
+category code 11 (letter) then the first and second argument of
+\usetexcommand{rhxtermSplitAtOther} are equal and the third argument
+is empty.
+%
+In that case the \usetexcommand{if} command in the code chunk below
+compares \verb'&' with \verb'&' and we fall into the \emph{true}
+branch.
+%
+Otherwise the third argument starts with something that is not an
+\verb'@' sign, namely the first letter of the first argument.
+%
+For this reason the following code breaks if the first argument of
+\usetexcommand{rhxtermAtSplit} starts with an \verb'&' sign or
+contains an \verb'&' sign after the second \verb'@'.
+
+If the first argument of \usetexcommand{rhxtermAtSplit} contains two
+\verb'@' signs, everything after and including the second \verb'@'
+sign is ignored.
+
+%CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+<<split at @ sign>>=
+\makeatother
+\def\rhxtermAtSplit#1{\rhxtermSplitAtOther#1@#1@\rhxtermAtEnd}
+\def\rhxtermSplitAtOther#1@#2@#3\rhxtermAtEnd{%
+  \if &#3&\expandafter\rhxtermAtSplitLetter
+  \else   \expandafter\rhxtermApplyThird\fi
+  {#1}{#2}}
+@ %def rhxtermAtSplit rhxtermSplitAtOther
+%TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+
+In the \emph{true} case, we must test whether there is an \verb'@'
+sign of category code 11 in the argument and split at it.
+
+%CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+<<split at @ sign>>=
+\makeatletter
+\def\rhxtermAtSplitLetter#1#2{\rhxtermSplitAtLetter#1@#1@\rhxtermAtEnd}
+\def\rhxtermSplitAtLetter#1@#2@#3\rhxtermAtEnd{\rhxtermApplyThird{#1}{#2}}
+@ %def rhxtermSplitAtLetter
+%TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+
+
+Finally, the tokens are put in the right order.
+%CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+<<split at @ sign>>=
+\def\rhxtermApplyThird#1#2#3{#3{#1}{#2}}
+@ %def rhxtermApplyThird
+%TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Putting Everything Together}
+
+%CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+<<general framework>>=
+<<rhxtermNewCommand>>
+<<make 3 arguments out of 2>>
+<<split at @ sign>>
+@
+%TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+
+
+
+
+%CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+<<*>>=
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% rhxterm
+% Copyright (C) 2003-2008, Ralf Hemmecke <ralf@hemmecke.de>
+%
+% rhxterm defines several commands for the definition and usage
+% of concepts. It should help to get an interactive dvi when used
+% together with the hyperref package.
+%
+% Documentation for this package can be found in the corresponding
+% noweb file. (http://www.hemmecke.de/ralf)
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+<<license>>
+\NeedsTeXFormat{LaTeX2e}
+<<version information>>
+<<general framework>>
+<<Definition of rhxDefineTerm and rhxUseTerm>>
+<<Definition of defineterm and useterm>>
+<<Definition of defineTermStyle and useTermStyle>>
+<<dummy hyperref commands>>
+<<table of contents workaround>>
+@
+%TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Known Problems}
+
+Using \usetexcommand{defineterm} and \usetexcommand{useterm} as
+defined above in the table of contents, i.\,e., in
+\usetexcommand{section} commands might produce hyperlinks in the
+line of the table of contents that do not point to the corresponding
+section but to the corresponding item of \usetexcommand{useterm}.
+%
+In order to prevent this misbehavior one must switch off the hyperlink
+part of those commands inside the table of contents. It can be done
+with the following commands where basically only the style survives.
+
+%CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+<<table of contents workaround>>=
+\let\rhxtermtableofcontents\tableofcontents
+\def\tableofcontents{{%
+    \renewcommand{\rhxDefineTerm}[3]{\defineTermStyle{##2}}%
+    \renewcommand{\rhxUseTerm}[3]{\useTermStyle{##2}}%
+    \rhxtermtableofcontents}}
+@
+%TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{License}
+%CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+<<license>>=
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% This work may be distributed and/or modified under the
+% conditions of the LaTeX Project Public License, either
+% version 1.3 of this license or (at your option) any later
+% version. The latest version of this license is in
+%   http://www.latex-project.org/lppl.txt               
+% and version 1.3 or later is part of all distributions of LaTeX
+% version 2003/12/01 or later.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+@
+%TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+
+
+\end{document}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%EMACS Local Variables:
+%EMACS mmm-noweb-code-mode: latex-mode
+%EMACS End:

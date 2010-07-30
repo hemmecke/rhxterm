@@ -1,0 +1,17 @@
+The rhxterm package provides two commands "\defineterm" and "\useterm"
+in order to tag definitions and use of terms that are introduced by
+the writer of some text.
+
+If the hyperref package is loaded (after rhxterm) then also hyperlinks
+from the use of some term to the place of its definition is generated.
+
+Furthermore, the rhxterm package provides commands for the additional
+definition of commands like \defineterm and \useterm.
+
+The file rhxterm.sty.nw is a literate program, just say
+
+  git clone git://github.com/hemmecke/rhxterm.git
+  make rhxterm.dvi
+
+in order to compile the source file into a dvi file.
+This will require noweb and latex on your system.
